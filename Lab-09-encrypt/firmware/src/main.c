@@ -41,6 +41,10 @@
 #include <malloc.h>
 #include "definitions.h"                // SYS function prototypes
 
+// Define the global that gives access to the student's name
+extern uint32_t nameStrPtr;
+extern uint32_t cipherTextPtr;
+
 /* RTC Time period match values for input clock of 1 KHz */
 #define PERIOD_100MS                            102
 #define PERIOD_500MS                            512
@@ -49,9 +53,9 @@
 #define PERIOD_4S                               4096
 
 // number of Lab Quiz points for 100% correct test results
-#define NUM_PTS_MAX 15
+#define NUM_PTS_MAX 20
 
-#define MAX_PRINT_LEN 400
+#define MAX_PRINT_LEN 900
 
 static volatile bool isRTCExpired = false;
 static volatile bool changeTempSamplingRate = false;
@@ -73,13 +77,14 @@ static char * fail = "FAIL";
 extern char * asmEncrypt(char *, uint32_t);
 
 
-
+// Different strings to be encrypted during tests
 static char * inpTextArray[] = { "ABCXYZ",
                                  "abcxyz",
                                  "\"Whoa, really?\", he said.",
                                  "123AbC456!@#$",
                                  ""   // Yes; a test of an empty string!
                                 };
+// Keys to be used for each test
 static uint32_t keyArray[] = {0,1,13,25};
 
 #define USING_HW 1
@@ -111,36 +116,49 @@ static void usartDmaChannelHandler(DMAC_TRANSFER_EVENT event, uintptr_t contextH
 // and/or crash
 static void testResult(int testNum, 
                       char * origText, 
-                      char * cipherText, 
+                      char * asmCipherTextPtr, 
                       uint32_t key,
                       uint32_t * passCount, // these counters are reset each time
                       uint32_t * failCount) 
 {
     *failCount = *passCount = 0;
-    char *s1 = pass;
-    char *s2 = pass;
+    char *s1 = pass;   // length and ptr are correct
+    char *s2 = pass;   // encryption is correct
     uint32_t origLen = strlen(origText);
-    uint32_t encryptedLen = strlen(cipherText);
+    uint32_t encryptedLen = strlen(asmCipherTextPtr);
+    char *printableDecryptString = 0;
     
-    if(origLen != encryptedLen)
+    // make sure returned ptr points to right place, else fail everything
+    if ( (char *) asmCipherTextPtr != (char *) cipherTextPtr )
+    {
+        *failCount += 2;
+        s1 = fail;
+        s2 = fail;
+        printableDecryptString = "DECRYPTION NOT ATTEMPTED DUE TO POINTER COMPARISON FAIL";
+    }
+    else if (origLen != encryptedLen)
     {
         // since we can't compare unequal length strings,
         // we won't even try to decrypt. This counts as two failures
         *failCount += 2;
         s1 = fail;
         s2 = fail;
+        printableDecryptString = "DECRYPTION NOT ATTEMPTED DUE TO LENGTH MISMATCH";
     }
-    else 
+    else
     {
         *passCount += 1;
     }
-
+            
     unsigned char * dPtr = decryptBuffer;
-    char * encCharPtr = cipherText;
+    char * encCharPtr = asmCipherTextPtr;
     
     // only attempt to decrypt if strlen test passed
     if(*failCount == 0)
     {
+        // set printable buf to the decrypt buffer
+        printableDecryptString = (char *) decryptBuffer;
+        
         char inpChar;
         // should really check key to make sure it's in range...
         // for(int i = 0; i < origLen; ++i)
@@ -189,10 +207,12 @@ static void testResult(int testNum,
             "decrypted text:                 <%s>\r\n"
             "test case string length:            %ld\r\n"
             "asmEncrypt encrypted string length: %ld\r\n"
-            "test results: length: %s; decrypted string: %s\r\n"
+            "test results: \r\n"
+            "  RETURNED POINTER AND LENGTH TEST: %s\r\n"
+            "             DECRYPTED STRING TEST: %s\r\n"
             "\r\n",
             testNum,key,
-            origText,cipherText,decryptBuffer,
+            origText,asmCipherTextPtr,printableDecryptString,
             origLen,encryptedLen,
             s1, s2); 
 
@@ -266,15 +286,15 @@ int main ( void )
                 int k = keyArray[keyIndex];
                 
                 // create a variable to store the returned pointer
-                char * encryptedText;
+                char * asmEncryptedTextPtr;
                 
                 // select the input text
                 char * inpText = inpTextArray[numString];
                 
                 // encrypt it
-                encryptedText = asmEncrypt(inpText,k);
+                asmEncryptedTextPtr = asmEncrypt(inpText,k);
                 
-                testResult(testCaseNum, inpText, encryptedText, k,
+                testResult(testCaseNum, inpText, asmEncryptedTextPtr, k,
                         &passCount, &failCount);
                 totalFailCount += failCount;
                 totalPassCount += passCount;
@@ -307,12 +327,12 @@ int main ( void )
         isRTCExpired = false;
         isUSARTTxComplete = false;
         snprintf((char*)uartTxBuffer, MAX_PRINT_LEN,
-                "========= ALL TESTS COMPLETE!\r\n"
+                "========= %s: ALL TESTS COMPLETE!\r\n"
                 "Post-test idle Count: %ld; "
                 "Total Passing Tests: %ld/%ld\r\n"
                 "Score: %ld/%d pts\r\n"
                 "\r\n",
-                idleCount, 
+                (char *) nameStrPtr, idleCount, 
                 totalPassCount,totalTestCount,
                 NUM_PTS_MAX*totalPassCount/totalTestCount,NUM_PTS_MAX); 
 

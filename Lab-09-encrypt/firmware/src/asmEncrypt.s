@@ -2,24 +2,40 @@
 
 #include <xc.h>
 
-# Declare the following to be in data memory 
+// Declare the following to be in data memory 
 .data  
 
-# Define the globals so that the C code can access them
-# (in this lab we return the pointer, so strictly speaking,
-# doesn't really need to be defined as global)
-# .global cipherText
+/* create a string */
+.global nameStr
+.type nameStr,%gnu_unique_object
+    
+/*** STUDENTS: Change the next line to your name!  **/
+nameStr: .asciz "Inigo Montoya"  
+ 
+/* initialize a global variable that C can access to print the nameStr */
+.global nameStrPtr
+.type nameStrPtr,%gnu_unique_object
+nameStrPtr: .word nameStr   /* Assign the mem loc of nameStr to nameStrPtr */
+
+ // Define the globals so that the C code can access them
+// (in this lab we return the pointer, so strictly speaking,
+// doesn't really need to be defined as global)
+// .global cipherText
 .type cipherText,%gnu_unique_object
 
 .align
-# space allocated for cipherText: 200 bytes, prefilled with 0x2A */
+// space allocated for cipherText: 200 bytes, prefilled with 0x2A */
 cipherText: .space 200,0x2A  
  
-# Tell the assembler that what follows is in instruction memory    
+.global cipherTextPtr
+.type cipherTextPtr,%gnu_unique_object
+cipherTextPtr: .word cipherText
+
+// Tell the assembler that what follows is in instruction memory    
 .text
 .align
 
-# Tell the assembler to allow both 16b and 32b extended Thumb instructions
+// Tell the assembler to allow both 16b and 32b extended Thumb instructions
 .syntax unified
 
     
@@ -61,14 +77,14 @@ where:
 .type asmEncrypt,%function
 asmEncrypt:   
 
-    # save the caller's registers, as required by the ARM calling convention
+    // save the caller's registers, as required by the ARM calling convention
     push {r4-r11,LR}
     
     /* YOUR asmEncrypt CODE BELOW THIS LINE! VVVVVVVVVVVVVVVVVVVVV  */
     
     /* YOUR asmEncrypt CODE ABOVE THIS LINE! ^^^^^^^^^^^^^^^^^^^^^  */
 
-    # restore the caller's registers, as required by the ARM calling convention
+    // restore the caller's registers, as required by the ARM calling convention
     pop {r4-r11,LR}
 
     mov pc, lr	 /* asmEncrypt return to caller */
