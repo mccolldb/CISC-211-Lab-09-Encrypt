@@ -112,7 +112,7 @@ static void usartDmaChannelHandler(DMAC_TRANSFER_EVENT event, uintptr_t contextH
 // If both strlen and decrypted contents match: passCount = 2; failCount = 0;
 // If strlen matches and decrypt doesn't, 1 pass, 1 fail
 // if strlen doesn't match, can't compare, so pass = 0, fail = 2
-// if student returns bogus pointer, this function will print garbage 
+// if student returns bogus pointer, pass = 0, fail = 2
 // and/or crash
 static void testResult(int testNum, 
                       char * origText, 
@@ -128,7 +128,9 @@ static void testResult(int testNum,
     uint32_t encryptedLen = strlen(asmCipherTextPtr);
     char *printableDecryptString = 0;
     
-    // make sure returned ptr points to right place, else fail everything
+    // make sure ptr returned by asm call matches the location reserved for the encrypted text
+    // if it doesn't, set fail count to 2 and don't compare student's decrypted text
+    // to known-good value
     if ( (char *) asmCipherTextPtr != (char *) cipherTextPtr )
     {
         *failCount += 2;
@@ -136,6 +138,9 @@ static void testResult(int testNum,
         s2 = fail;
         printableDecryptString = "DECRYPTION NOT ATTEMPTED DUE TO POINTER COMPARISON FAIL";
     }
+    // make sure length of encrypted string matches known-good encrypted text.
+    // if it doesn't, set fail count to 2 and don't compare student's decrypted text
+    // to known-good value
     else if (origLen != encryptedLen)
     {
         // since we can't compare unequal length strings,
@@ -153,7 +158,8 @@ static void testResult(int testNum,
     unsigned char * dPtr = decryptBuffer;
     char * encCharPtr = asmCipherTextPtr;
     
-    // only attempt to decrypt if strlen test passed
+    // decrypt the encrypted string returned by student's code.
+    // only attempt to decrypt if ptr and strlen tests passed
     if(*failCount == 0)
     {
         // set printable buf to the decrypt buffer
