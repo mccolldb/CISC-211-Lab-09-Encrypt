@@ -10,17 +10,17 @@
 .type nameStr,%gnu_unique_object
     
 /*** STUDENTS: Change the next line to your name!  **/
-nameStr: .asciz "Inigo Montoya"  
+nameStr: .asciz "David McColl"  
  
 /* initialize a global variable that C can access to print the nameStr */
 .global nameStrPtr
 .type nameStrPtr,%gnu_unique_object
 nameStrPtr: .word nameStr   /* Assign the mem loc of nameStr to nameStrPtr */
 
- // Define the globals so that the C code can access them
+// Define the globals so that the C code can access them
 // (in this lab we return the pointer, so strictly speaking,
-// doesn't really need to be defined as global)
-// .global cipherText
+// doesnot really need to be defined as global)
+.global cipherText
 .type cipherText,%gnu_unique_object
 
 .align
@@ -76,20 +76,44 @@ where:
 .global asmEncrypt
 .type asmEncrypt,%function
 asmEncrypt:   
-
-    // save the caller's registers, as required by the ARM calling convention
+    // pointerToCipherText = asmEncrypt ( ptrToInputText , key )
+    //         R0                              R0          R1
+    // save the callers registers, as required by the ARM calling convention
     push {r4-r11,LR}
     
     /* YOUR asmEncrypt CODE BELOW THIS LINE! VVVVVVVVVVVVVVVVVVVVV  */
-    
+    // SUB R1,R1,'A'      // calc offset from 'A' to key char.
+    LDR R3,=cipherText    // initialize pointer to cyphertext char
+1:
+    LDRB R2,[R0],1  // read plaintext char --> R2
+    CMP R2,'A'
+    BLT not_capital
+    CMP R2,'Z'
+    BGT not_capital
+    ADD  R2,R2,R1   // is a capital letter -- encrypt it!
+    CMP R2,'Z'      // check capital for wrap
+    SUBGT R2,R2,26
+    B rdy2write
+not_capital:
+    CMP R2,'a'
+    BLT not_lower
+    CMP R2,'z'
+    BGT not_lower
+    ADD  R2,R2,R1  // is a lower letter -- encrypt it!
+    CMP R2,'z'     // check for lower wrap
+    SUBGT R2,R2,26
+not_lower:
+rdy2write:
+    STRB R2,[R3],1  // write cyphertetxt char
+    CMP R2,0        // check for NUL terminator
+    BNE 1b
+    LDR R0,=cipherText /* return addr(encrypted string) */
+
     /* YOUR asmEncrypt CODE ABOVE THIS LINE! ^^^^^^^^^^^^^^^^^^^^^  */
 
     // restore the caller's registers, as required by the ARM calling convention
     pop {r4-r11,LR}
-
     mov pc, lr	 /* asmEncrypt return to caller */
-   
-
 /**********************************************************************/   
 .end  /* The assembler will not process anything after this directive!!! */
            
